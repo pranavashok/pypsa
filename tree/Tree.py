@@ -7,6 +7,7 @@ class Tree(object):
     def insert(self, n):
         n.parent = self
         self.children.append(n)
+        return n
 
     def bfs(self, query):
         bfsqueue = []

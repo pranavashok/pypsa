@@ -5,15 +5,15 @@ root = Tree(1)
 n = Tree(2)
 
 x = Tree(3)
-n.insert(x)
+n = n.insert(x)
 
 x = Tree(4)
-n.insert(x)
+n = n.insert(x)
 
 x = Tree(5)
-root.insert(x)
+root = root.insert(x)
 
-root.insert(n)
+root = root.insert(n)
 
 result = root.bfs(4)
 
