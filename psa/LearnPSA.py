@@ -47,25 +47,30 @@ class LearnPSA(object):
         return p
 
     def _add_missing_children(self, tree):
-        missing_children = []
-        if tree.data[1] == 1:
-            for sigma in self.Sigma:
-                if tree.data[0] == '0':
-                    missing_children.append(sigma)
-                else:
-                    missing_children.append(sigma+tree.data[0])
-        else:
+        #Filter out leaves
+        if len(tree.children) == 0:
             return tree
+        else:
+            missing_children = []
+            if tree.data[1] == 1:
+                for sigma in self.Sigma:
+                    if tree.data[0] == '0':
+                        missing_children.append(sigma)
+                    else:
+                        missing_children.append(sigma+tree.data[0])
+            else:
+                return tree
 
-        for child in tree.children:
-            child = self._add_missing_children(child)
-            if child.data[1] == 1:
-                missing_children.remove(child.data[0])
+            for child in tree.children:
+                child = self._add_missing_children(child)
+                if child.data[1] == 1:
+                    #print(missing_children, child.data[0])
+                    missing_children.remove(child.data[0])
 
-        for s in missing_children:
-            tree = tree.insert(Tree((s, 0)))
+            for s in missing_children:
+                tree = tree.insert(Tree((s, 0)))
 
-        return tree
+            return tree
 
     def _learn(self):
         T = Tree(("0", 1))
@@ -87,15 +92,15 @@ class LearnPSA(object):
                 else:
                     if (self._P2(sigma, s) >= (1+self.e2)*self.gamma_min) and ((self._P2(sigma, s)/self._P2(sigma, s[1:])) > 1+3*self.e2):
                         '''
-                        This will insert to the next available suffix. Can it be done this way?
+                        This will insert all suffixes uptil s
                         '''
-                        for i in range(0, self.L):
+                        i = len(s)-1
+                        while i >= 0:
                             x = T.bfs(s[i:])
-                            if x:
-                                x = x.insert(Tree((s, 1)))
-                                #T = T.bfs(s[i:]).insert(Tree((s, 1)))
-                                break
-
+                            if x == None:
+                                parent = T.bfs(s[i+1:])
+                                parent = parent.insert(Tree((s[i:], 1)))
+                            i = i - 1
                         break
 
             if len(s) < self.L:
@@ -104,21 +109,7 @@ class LearnPSA(object):
                         S.append(sigma+s)
 
         _T = T
-        #_T = self._add_missing_children(_T)
-        
-        '''print(T.data[0])
-        for c in T.children:
-            print(c.data[0], c.children)
-        bfsqueue = []
-        for c in _T.children:
-            print(c.children)
-            bfsqueue.append(c)
-        while len(bfsqueue) != 0:
-            for e in bfsqueue:
-                for d in e.children:
-                    bfsqueue.append(d)
-        for e in bfsqueue:
-            print(e.data[0])'''
+        _T = self._add_missing_children(_T)
 
         return _T
 
