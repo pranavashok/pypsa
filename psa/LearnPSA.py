@@ -39,6 +39,23 @@ class LearnPSA(object):
         
         return p
 
+    def _add_missing_children(self, tree):
+        if tree.data[1] == 1:
+            for sigma in Sigma:
+                missing_children.append(sigma+tree.data[0])
+        else:
+            return tree
+
+        for child in tree.children:
+            child = _add_missing_children(child)
+            if child.data[1] == 1:
+                missing_children.remove(child.data[0])
+
+        for s in missing_children:
+            tree = tree.insert(Tree((s, 0)))
+
+        return tree
+
     def learn(self):
         T = Tree(0)
         S = []
@@ -50,20 +67,24 @@ class LearnPSA(object):
             s = S.pop()
 
             for sigma in Sigma:
-                if (_P2(sigma, s.data) >= (1+e2)*gamma_min) && (_P2(sigma, s.data)/_P2(sigma, s.data[1:])) > 1+3*e2): '''suffix(s) = s[1:]'''
-                    s = bfs(s.data[1:]).insert(s)
+                if (_P2(sigma, s.data[0]) >= (1+e2)*gamma_min) && (_P2(sigma, s.data[0])/_P2(sigma, s.data[0][1:])) > 1+3*e2): # suffix(s) = s[1:]
+                    s = T.bfs(s.data[0][1:]).insert((s, 1))
+
                     '''
-                    Is this the correct place in the tree to insert s? What if suffix(s) doesn't exist?
-                    '''
+                    # Is this piece of code required?
+
                     iter = s.parent
                     while iter:
-                        S.append(iter) ''' Should only unique iter be appended? '''
+                        S.append(iter) # Should only unique iter be appended?
                         iter = iter.parent
+                    '''
+
+                    break
 
             if len(s) < L:
                 for sigma in Sigma:
-                    if P2(sigma, s.data) >= (1-e1)/e0:
+                    if P2(sigma, s.data[0]) >= (1-e1)/e0:
                         S.append(Tree(sigma+s))
 
         _T = T
-
+        _T = _add_missing_children(_T)
