@@ -64,16 +64,15 @@ class LearnPSA(object):
             for child in tree.children:
                 child = self._add_missing_children(child)
                 if child.data[1] == 1:
-                    #print(missing_children, child.data[0])
                     missing_children.remove(child.data[0])
 
             for s in missing_children:
-                tree = tree.insert(Tree((s, 0)))
+                tree = tree.insert(Tree([s, 0]))
 
             return tree
 
     def _learn(self):
-        T = Tree(("0", 1))
+        T = Tree(["0", 1])
         S = []
         Sigma = self.Sigma
         for sigma in self.Sigma:
@@ -87,7 +86,7 @@ class LearnPSA(object):
                 '''suffix(s) = s[1:]'''
                 if s[1:] == "":
                     if (self._P2(sigma, s) >= (1+self.e2)*self.gamma_min):
-                        T = T.insert(Tree((s, 1)))
+                        T = T.insert(Tree([s, 1]))
                         break
                 else:
                     if (self._P2(sigma, s) >= (1+self.e2)*self.gamma_min) and ((self._P2(sigma, s)/self._P2(sigma, s[1:])) > 1+3*self.e2):
@@ -99,7 +98,7 @@ class LearnPSA(object):
                             x = T.bfs(s[i:])
                             if x == None:
                                 parent = T.bfs(s[i+1:])
-                                parent = parent.insert(Tree((s[i:], 1)))
+                                parent = parent.insert(Tree([s[i:], 1]))
                             i = i - 1
                         break
 
@@ -110,8 +109,19 @@ class LearnPSA(object):
 
         _T = T
         _T = self._add_missing_children(_T)
+        _T = self._compute_gamma_s_sigma(_T)
 
         return _T
+
+    def _compute_gamma_s_sigma(self, tree):
+        s = tree.data[0]
+        gamma_s_sigma = {}
+        for child in tree.children:
+            child = self._compute_gamma_s_sigma(child)
+        for sigma in self.Sigma:
+            gamma_s_sigma[sigma] = round(self._P2(sigma, s[1:])*(1-len(self.Sigma)*self.gamma_min)+self.gamma_min, 2)
+            tree.data.append(gamma_s_sigma)
+        return tree
 
     def print_tree(self):
         bfsqueue = []
@@ -119,6 +129,6 @@ class LearnPSA(object):
             bfsqueue.append(c)
         while len(bfsqueue) > 0:
             e = bfsqueue.pop()
-            print(e.data[0])
+            print(e.data[0], e.data[2])
             for c in e.children:
                 bfsqueue.append(c)
