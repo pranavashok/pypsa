@@ -32,7 +32,22 @@ class LearnPSA(object):
             p += r[1:len(r)-1].count(s)
         p = p/(len(self.sample)*(len(r)-self.L))
         return p
-    
+
+    def _P3(self, sigma, s):
+        '''
+        P(sigma|s) is roughly the relative number of times sigma appears after s
+        '''
+        countssigma = 0
+        counts = 0
+        for r in self.sample:
+            countssigma += r.count(s+sigma)
+            counts += r[:len(r)-len(s)-1].count(s)
+        if counts > 0:
+            p = countssigma/counts
+        else:
+            p = 0
+        return p
+
     def _P2(self, sigma, s):
         '''
         P(sigma|s) is roughly the relative number of times sigma appears after s
@@ -102,18 +117,32 @@ class LearnPSA(object):
                         T = T.insert(Tree([s, 1]))
                         break
                 else:
-                    if (self._P2(sigma, s) >= (1+self.e2)*self.gamma_min) and ((self._P2(sigma, s)/self._P2(sigma, s[1:])) > 1+3*self.e2):
-                        '''
-                        This will insert all suffixes uptil s
-                        '''
-                        i = len(s)-1
-                        while i >= 0:
-                            x = T.bfs(s[i:])
-                            if x == None:
-                                parent = T.bfs(s[i+1:])
-                                parent = parent.insert(Tree([s[i:], 1]))
-                            i = i - 1
-                        break
+                    if self._P2(sigma, s[1:]) != 0:
+                        if (self._P2(sigma, s) >= (1+self.e2)*self.gamma_min) and ((self._P2(sigma, s)/self._P2(sigma, s[1:])) > 1+3*self.e2):
+                            '''
+                            This will insert all suffixes uptil s
+                            '''
+                            i = len(s)-1
+                            while i >= 0:
+                                x = T.bfs(s[i:])
+                                if x == None:
+                                    parent = T.bfs(s[i+1:])
+                                    parent = parent.insert(Tree([s[i:], 1]))
+                                i = i - 1
+                            break
+                    else:
+                        if (self._P2(sigma, s) >= (1+self.e2)*self.gamma_min):
+                            '''
+                            This will insert all suffixes uptil s
+                            '''
+                            i = len(s)-1
+                            while i >= 0:
+                                x = T.bfs(s[i:])
+                                if x == None:
+                                    parent = T.bfs(s[i+1:])
+                                    parent = parent.insert(Tree([s[i:], 1]))
+                                i = i - 1
+                            break                        
 
             if len(s) < self.L:
                 for sigma in self.Sigma:
@@ -122,7 +151,7 @@ class LearnPSA(object):
 
         _T = T
         _T = self._add_missing_children(_T)
-        _T = self._compute_gamma_s_sigma(_T)
+        #_T = self._compute_gamma_s_sigma(_T)
 
         return _T
 
@@ -132,7 +161,7 @@ class LearnPSA(object):
         for child in tree.children:
             child = self._compute_gamma_s_sigma(child)
         for sigma in self.Sigma:
-            gamma_s_sigma[sigma] = round(self._P2(sigma, s[1:])*(1-len(self.Sigma)*self.gamma_min)+self.gamma_min, 2)
+            gamma_s_sigma[sigma] = self._P2(sigma, s[1:])*(1-len(self.Sigma)*self.gamma_min)+self.gamma_min
             tree.data.append(gamma_s_sigma)
         return tree
 
@@ -170,9 +199,8 @@ class LearnPSA(object):
             for sigma in self.Sigma:
                 for i in range(0, len(state+sigma)):
                     if psa.count((state+sigma)[i:]) == 1:
-                        transition[(state, sigma)] = ((state+sigma)[i:], self._P2(sigma, state[::-1]))
+                        transition[(state, sigma)] = ((state+sigma)[i:], self._P3(sigma, state))
                         break
-
         return psa, transition
 
     def _first_transition(self):
@@ -183,11 +211,10 @@ class LearnPSA(object):
         prob = numpy.array(pi)
         cumprob = numpy.cumsum(prob)
         i = 0
-        for e in PI:
-            PI[e] = cumprob[i]
+        for sigma in self.Sigma:
+            PI[sigma] = cumprob[i]
             i += 1
-        random.seed()
-        r = random.randint(0, 1000)/1000
+        r = random.randrange(0, 1000)/1000
         for sigma in self.Sigma:
             if PI[sigma]-r >= 0:
                 return sigma
@@ -208,8 +235,7 @@ class LearnPSA(object):
             for sigma in self.Sigma:
                 T[sigma] = cumprob[i]
                 i += 1
-            random.seed()
-            r = random.randint(0, 1000)/1000
+            r = random.randrange(0, 1000)/1000
             for sigma in self.Sigma:
                 if T[sigma]-r >= 0:
                     run += sigma
