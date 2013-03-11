@@ -7,22 +7,22 @@ class Tree(object):
     def insert(self, n):
         n.parent = self
         self.children.append(n)
-        return n
+        return self
 
     def bfs(self, query):
         bfsqueue = []
         for c in self.children:
             bfsqueue.append(c)
-        while len(bfsqueue) != 0:
-            for e in bfsqueue:
-                if e.data == query:
-                    return e
-                else:
-                    for c in e.children:
-                        if c.data == query:
-                            return c
-                        else:
-                            bfsqueue.append(c)
+        while len(bfsqueue) > 0:
+            e = bfsqueue.pop()
+            if e.data[0] == query:
+                return e
+            else:
+                for c in e.children:
+                    if c.data[0] == query:
+                        return c
+                    else:
+                        bfsqueue.append(c)
 
     def path_to_root(self):
         node = self

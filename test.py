@@ -1,20 +1,6 @@
-from tree.Tree import Tree
+from psa.LearnPSA import LearnPSA
 
-root = Tree(1)
-
-n = Tree(2)
-
-x = Tree(3)
-n = n.insert(x)
-
-x = Tree(4)
-n = n.insert(x)
-
-x = Tree(5)
-root = root.insert(x)
-
-root = root.insert(n)
-
-result = root.bfs(4)
-
-result.path_to_root()
+L = LearnPSA(0.8, 50, 9, ["a", "b", "c", "d", "e", "f", "g"])
+L.learn_sample("cdecdcdecd")
+L.learn_sample("dedecdcdec")
+L.print_tree()
