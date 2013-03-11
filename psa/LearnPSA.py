@@ -1,5 +1,8 @@
 from tree.Tree import Tree
 import math
+import random
+import numpy
+import array
 
 class LearnPSA(object):
     def __init__(self, e, n, L, Sigma):
@@ -26,8 +29,8 @@ class LearnPSA(object):
         '''
         p = 0
         for r in self.sample:
-            p += r.count(s)/(len(r)-self.L)
-        p = p/len(self.sample)
+            p += r[1:len(r)-1].count(s)
+        p = p/(len(self.sample)*(len(r)-self.L))
         return p
     
     def _P2(self, sigma, s):
@@ -37,14 +40,24 @@ class LearnPSA(object):
         countssigma = 0
         counts = 0
         for r in self.sample:
-            countssigma += r.count(s+sigma)
-            counts += r.count(s)
-
+            countssigma += r[1:len(r)-1].count(s+sigma)
+            counts += r[1:len(r)-1].count(s)
         if counts > 0:
             p = countssigma/counts
         else:
             p = 0
         return p
+
+    def _PI(self):
+        PI = {}
+        for sigma in self.Sigma:
+            count = 0
+            for r in self.sample:
+                if r[0] == sigma:
+                    count += 1
+            PI[sigma] = count/len(self.sample)
+        return PI
+
 
     def _add_missing_children(self, tree):
         #Filter out leaves
@@ -104,7 +117,7 @@ class LearnPSA(object):
 
             if len(s) < self.L:
                 for sigma in self.Sigma:
-                    if self._P2(sigma, s) >= (1-self.e1)*self.e0:
+                    if self._P1(sigma+s) >= (1-self.e1)*self.e0:
                         S.append(sigma+s)
 
         _T = T
@@ -129,6 +142,78 @@ class LearnPSA(object):
             bfsqueue.append(c)
         while len(bfsqueue) > 0:
             e = bfsqueue.pop()
-            print(e.data[0], e.data[2])
+            print(e.data[0])
             for c in e.children:
                 bfsqueue.append(c)
+
+    def _get_pst_states(self):
+        states = []
+        bfsqueue = []
+        for c in self.PST.children:
+            bfsqueue.append(c)
+        while len(bfsqueue) > 0:
+            e = bfsqueue.pop()
+            states.append(e.data[0])
+            for c in e.children:
+                bfsqueue.append(c)
+        return states
+    
+    def generate_psa(self):
+        psa = []
+        states = self._get_pst_states()
+        for state in states:
+            psa.append(state[::-1])
+
+        psa.sort()
+        transition = {}
+        for state in psa:
+            for sigma in self.Sigma:
+                for i in range(0, len(state+sigma)):
+                    if psa.count((state+sigma)[i:]) == 1:
+                        transition[(state, sigma)] = ((state+sigma)[i:], self._P2(sigma, state[::-1]))
+                        break
+
+        return psa, transition
+
+    def _first_transition(self):
+        PI = self._PI()
+        pi = []
+        for sigma in self.Sigma:
+            pi.append(PI[sigma])
+        prob = numpy.array(pi)
+        cumprob = numpy.cumsum(prob)
+        i = 0
+        for e in PI:
+            PI[e] = cumprob[i]
+            i += 1
+        random.seed()
+        r = random.randint(0, 1000)/1000
+        for sigma in self.Sigma:
+            if PI[sigma]-r >= 0:
+                return sigma
+
+    def generate_run(self, states, transition, N):
+        run = ""
+        first = self._first_transition()
+        run += first
+        cur_state = first
+        while len(run) <= N:
+            po = []
+            T = {}
+            for sigma in self.Sigma:
+                po.append(transition[(cur_state, sigma)][1])
+            prob = numpy.array(po)
+            cumprob = numpy.cumsum(prob)
+            i = 0
+            for sigma in self.Sigma:
+                T[sigma] = cumprob[i]
+                i += 1
+            random.seed()
+            r = random.randint(0, 1000)/1000
+            for sigma in self.Sigma:
+                if T[sigma]-r >= 0:
+                    run += sigma
+                    cur_state = transition[(cur_state, sigma)][0]
+                    break
+        print(run)
+                

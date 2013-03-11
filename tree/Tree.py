@@ -23,15 +23,3 @@ class Tree(object):
                         return c
                     else:
                         bfsqueue.append(c)
-
-    def path_to_root(self):
-        node = self
-        path = []
-        while node:
-            path.append(node.data)
-            node = node.parent
-
-        path.reverse()
-
-        for i in path:
-            print(i)
