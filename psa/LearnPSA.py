@@ -117,32 +117,18 @@ class LearnPSA(object):
                         T = T.insert(Tree([s, 1]))
                         break
                 else:
-                    if self._P2(sigma, s[1:]) != 0:
-                        if (self._P2(sigma, s) >= (1+self.e2)*self.gamma_min) and ((self._P2(sigma, s)/self._P2(sigma, s[1:])) > 1+3*self.e2):
-                            '''
-                            This will insert all suffixes uptil s
-                            '''
-                            i = len(s)-1
-                            while i >= 0:
-                                x = T.bfs(s[i:])
-                                if x == None:
-                                    parent = T.bfs(s[i+1:])
-                                    parent = parent.insert(Tree([s[i:], 1]))
-                                i = i - 1
-                            break
-                    else:
-                        if (self._P2(sigma, s) >= (1+self.e2)*self.gamma_min):
-                            '''
-                            This will insert all suffixes uptil s
-                            '''
-                            i = len(s)-1
-                            while i >= 0:
-                                x = T.bfs(s[i:])
-                                if x == None:
-                                    parent = T.bfs(s[i+1:])
-                                    parent = parent.insert(Tree([s[i:], 1]))
-                                i = i - 1
-                            break                        
+                    if (self._P2(sigma, s) >= (1+self.e2)*self.gamma_min) and ((self._P2(sigma, s)/self._P2(sigma, s[1:])) > 1+3*self.e2):
+                        '''
+                        This will insert all suffixes uptil s
+                        '''
+                        i = len(s)-1
+                        while i >= 0:
+                            x = T.bfs(s[i:])
+                            if x == None:
+                                parent = T.bfs(s[i+1:])
+                                parent = parent.insert(Tree([s[i:], 1]))
+                            i = i - 1
+                        break
 
             if len(s) < self.L:
                 for sigma in self.Sigma:
@@ -242,4 +228,3 @@ class LearnPSA(object):
                     cur_state = transition[(cur_state, sigma)][0]
                     break
         print(run)
-                
