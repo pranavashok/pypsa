@@ -182,10 +182,15 @@ class LearnPSA(object):
         transition = {}
         for state in psa:
             for sigma in self.Sigma:
-                for i in range(0, len(state+sigma)):
+                for i in range(0, len(state+sigma)-1):
+                    #If state+sigma or it's suffix is present
                     if psa.count((state+sigma)[i:]) == 1:
                         transition[(state, sigma)] = ((state+sigma)[i:], self._P2(sigma, state))
+                        flag = 0
                         break
+                    else:
+                        flag = 100
+            #print(flag)
         return psa, transition
 
     def _first_transition(self):
@@ -216,8 +221,6 @@ class LearnPSA(object):
                 po.append(transition[(cur_state, sigma)][1])
             prob = numpy.array(po)
             cumprob = numpy.cumsum(prob)
-            if cumprob[len(cumprob)-1] == 0:
-                continue
             i = 0
             for sigma in self.Sigma:
                 T[sigma] = cumprob[i]
