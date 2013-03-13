@@ -29,7 +29,7 @@ class LearnPSA(object):
         '''
         p = 0
         for r in self.sample:
-            p += r[1:len(r)-1].count(s)
+            p += r[self.L-len(s)+1:len(r)-1].count(s)
         p = p/(len(self.sample)*(len(r)-self.L))
         return p
 
@@ -40,8 +40,8 @@ class LearnPSA(object):
         countssigma = 0
         counts = 0
         for r in self.sample:
-            countssigma += r[1:len(r)-1].count(s+sigma)
-            counts += r[1:len(r)-1].count(s)
+            countssigma += r[self.L-len(s+sigma)+1:len(r)-1].count(s+sigma)
+            counts += r[self.L-len(s)+1:len(r)-1].count(s)
         if counts > 0:
             p = countssigma/counts
         else:
@@ -87,7 +87,6 @@ class LearnPSA(object):
     def _learn(self):
         T = Tree(["0", 1])
         S = []
-        Sigma = self.Sigma
         for sigma in self.Sigma:
             if self._P1(sigma) >= (1-self.e1)*self.e0:
                 S.append(sigma)
@@ -95,7 +94,7 @@ class LearnPSA(object):
         while len(S) > 0:
             s = S.pop()
 
-            for sigma in Sigma:
+            for sigma in self.Sigma:
                 '''suffix(s) = s[1:]'''
                 if s[1:] == "":
                     if (self._P2(sigma, s[::-1]) >= (1+self.e2)*self.gamma_min):
@@ -135,7 +134,7 @@ class LearnPSA(object):
                         S.append(sigma+s)
 
         _T = T
-        _T = self._add_missing_children(_T)
+        #_T = self._add_missing_children(_T)
         #_T = self._compute_gamma_s_sigma(_T)
 
         return _T
