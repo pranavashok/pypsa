@@ -87,6 +87,7 @@ class LearnPSA(object):
     def _learn(self):
         T = Tree(["0", 1])
         S = []
+        removed_from_S = []
         for sigma in self.Sigma:
             if self._P1(sigma) >= (1-self.e1)*self.e0:
                 S.append(sigma)
@@ -97,12 +98,12 @@ class LearnPSA(object):
             for sigma in self.Sigma:
                 '''suffix(s) = s[1:]'''
                 if s[1:] == "":
-                    if (self._P2(sigma, s[::-1]) >= (1+self.e2)*self.gamma_min):
+                    if (self._P2(sigma, s) >= (1+self.e2)*self.gamma_min):
                         T = T.insert(Tree([s, 1]))
                         break
                 else:
-                    if self._P2(sigma, (s[1:])[::-1]) != 0:
-                        if (self._P2(sigma, s[::-1]) >= (1+self.e2)*self.gamma_min) and ((self._P2(sigma, s[::-1])/self._P2(sigma, (s[1:])[::-1])) > 1+3*self.e2):
+                    if self._P2(sigma, s[1:]) != 0:
+                        if (self._P2(sigma, s) >= (1+self.e2)*self.gamma_min) and ((self._P2(sigma, s)/self._P2(sigma, s[1:])) > 1+3*self.e2):
                             '''
                             This will insert all suffixes uptil s
                             '''
@@ -113,9 +114,14 @@ class LearnPSA(object):
                                     parent = T.bfs(s[i+1:])
                                     parent = parent.insert(Tree([s[i:], 1]))
                                 i = i - 1
+                            i = len(s)-1
+                            while i > 0:
+                                if removed_from_S.count(s[i:]) == 0:
+                                    S.append(s[i:]) #Insert only uniques
+                                i = i - 1
                             break
                         else:
-                            if self._P2(sigma, s[::-1]) >= (1+self.e2)*self.gamma_min:
+                            if self._P2(sigma, s) >= (1+self.e2)*self.gamma_min:
                                 '''
                                 This will insert all suffixes uptil s
                                 '''
@@ -130,11 +136,13 @@ class LearnPSA(object):
 
             if len(s) < self.L:
                 for sigma in self.Sigma:
-                    if self._P1(s[::-1]+sigma) >= (1-self.e1)*self.e0:
+                    if self._P1(sigma+s) >= (1-self.e1)*self.e0:
                         S.append(sigma+s)
 
+            removed_from_S.append(s)
+
         _T = T
-        #_T = self._add_missing_children(_T)
+        _T = self._add_missing_children(_T)
         #_T = self._compute_gamma_s_sigma(_T)
 
         return _T
@@ -188,8 +196,10 @@ class LearnPSA(object):
                         flag = 0
                         break
                     else:
-                        flag = 100
-            #print(flag)
+                        flag = 1
+                if flag == 1:
+                    transition[(state, sigma)] = (state+sigma, 0)
+
         return psa, transition
 
     def _first_transition(self):
@@ -214,6 +224,7 @@ class LearnPSA(object):
         run += first
         cur_state = first
         while len(run) <= N:
+            print(cur_state)
             po = []
             T = {}
             for sigma in self.Sigma:
@@ -224,14 +235,18 @@ class LearnPSA(object):
             for sigma in self.Sigma:
                 T[sigma] = cumprob[i]
                 i += 1
-            r = random.randrange(0, 1000)/1000
+            print(T)
+            r = random.randrange(1, 999)/1000
             for sigma in self.Sigma:
                 if T[sigma]-r >= 0 and T[sigma] >= 0:
+                    #If there exists some non-zero transition from sigma|cur_state
                     for s in self.Sigma:
-                        #If there exists some non-zero transition from sigma|cur_state
+                        flag = 0
                         if transition[(transition[(cur_state, sigma)][0], s)][1] != 0:
-                            run += sigma
-                            cur_state = transition[(cur_state, sigma)][0]
+                            flag = 1
                             break
-                    break
+                    if flag == 1:
+                        run += sigma
+                        cur_state = transition[(cur_state, sigma)][0]
+                        break
         return run
