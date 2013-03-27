@@ -6,12 +6,12 @@ L.learn_sample("cdecdcdecd")
 L.learn_sample("dedecdcdec")
 #print((1+L.e2)*L.gamma_min, 1+3*L.e2, (1-L.e1)*L.e0)
 #L.print_tree()
-states, transition = L.generate_psa()
+states, transition, nextstate = L.generate_psa()
 
 #Run 100 times and print the frequency of differenct outcomes
 run = []
 for i in range(0,100):
-	run.append(L.generate_run(states, transition, 10))
+	run.append(L.generate_run(states, transition, nextstate, 10))
 
 unique = {}
 for item in run:

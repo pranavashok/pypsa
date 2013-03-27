@@ -187,20 +187,18 @@ class LearnPSA(object):
 
         psa.sort()
         transition = {}
+        nextstate = {}
         for state in psa:
             for sigma in self.Sigma:
-                for i in range(0, len(state+sigma)-1):
-                    #If state+sigma or it's suffix is present
-                    if psa.count((state+sigma)[i:]) == 1:
-                        transition[(state, sigma)] = ((state+sigma)[i:], self._P2(sigma, state))
-                        flag = 0
-                        break
-                    else:
-                        flag = 1
-                if flag == 1:
-                    transition[(state, sigma)] = (state+sigma, 0)
+                transition[(state, sigma)] = self._P2(sigma, state)
+                if transition[(state, sigma)] > 0:
+                    for i in range(0, len(state+sigma)-1):
+                        #If state+sigma or it's suffix is present
+                        if psa.count((state+sigma)[i:]) == 1:
+                            nextstate[(state, sigma)] = (state+sigma)[i:]
+                            break
 
-        return psa, transition
+        return psa, transition, nextstate
 
     def _first_transition(self):
         PI = self._PI()
@@ -218,35 +216,35 @@ class LearnPSA(object):
             if PI[sigma]-r >= 0 and PI[sigma] >= 0:
                 return sigma
 
-    def generate_run(self, states, transition, N):
+    def generate_run(self, states, transition, nextstate, N):
         run = ""
         first = self._first_transition()
         run += first
         cur_state = first
         while len(run) <= N:
-            print(cur_state)
             po = []
             T = {}
             for sigma in self.Sigma:
-                po.append(transition[(cur_state, sigma)][1])
+                po.append(transition[(cur_state, sigma)])
             prob = numpy.array(po)
             cumprob = numpy.cumsum(prob)
+
             i = 0
             for sigma in self.Sigma:
                 T[sigma] = cumprob[i]
                 i += 1
-            print(T)
+
             r = random.randrange(1, 999)/1000
             for sigma in self.Sigma:
                 if T[sigma]-r >= 0 and T[sigma] >= 0:
-                    #If there exists some non-zero transition from sigma|cur_state
-                    for s in self.Sigma:
-                        flag = 0
-                        if transition[(transition[(cur_state, sigma)][0], s)][1] != 0:
+                    run += sigma
+                    next_possible_state = nextstate[(cur_state, sigma)]
+                    flag = 0
+                    for sigma in self.Sigma:
+                        if transition[(next_possible_state, sigma)] > 0:
                             flag = 1
                             break
                     if flag == 1:
-                        run += sigma
-                        cur_state = transition[(cur_state, sigma)][0]
+                        cur_state = next_possible_state
                         break
         return run
