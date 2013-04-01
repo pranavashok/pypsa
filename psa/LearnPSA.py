@@ -117,6 +117,7 @@ class LearnPSA(object):
                 child = self._add_missing_children(child)
                 if child.data[1] == 1:
                     self._remove(missing_children, child.data[0])
+                    missing_children.remove(missing_children[missing_children.index(child.data[0])])
 
             for s in missing_children:
                 tree = tree.insert(Tree([s, 0]))
@@ -204,7 +205,7 @@ class LearnPSA(object):
             bfsqueue.append(c)
         while len(bfsqueue) > 0:
             e = bfsqueue.pop()
-            print(e.data[0])
+            print e.data[0]
             for c in e.children:
                 bfsqueue.append(c)
 
@@ -226,21 +227,21 @@ class LearnPSA(object):
         states = self._get_pst_states()
         for state in states:
             state.reverse()
-            psa.append(state)
+            psa.extend(state) ##changed append to extend
 
         psa.sort()
         transition = {}
         nextstate = {}
         for state in psa:
             for sigma in self.Sigma:
-                transition[(" ".join(state), " ".join(sigma))] = self._P2(sigma, state)
-                if transition[(" ".join(state), " ".join(sigma))] > 0:
-                    for i in xrange(0, len(state)+len(sigma)-1):
-                        #If state+sigma or it's suffix is present
-                        ssigma = state[:]
-                        ssigma.append(sigma)
-                        if self._count(psa, ssigma[i:]) == 1:
-                            nextstate[(" ".join(state), " ".join(sigma))] = (ssigma)[i:]
+                transition[(" ".join(state), sigma)] = self._P2(sigma, state)
+                if transition[(" ".join(state), sigma)] > 0:
+                    #If state+sigma or it's suffix is present
+                    ssigma = state[:]
+                    ssigma.append(sigma)
+                    for i in xrange(0, len(ssigma)):
+                        if psa.count(ssigma[i:]) == 1:
+                            nextstate[(" ".join(state), sigma)] = (ssigma)[i:]
                             break
 
         return psa, transition, nextstate
@@ -284,10 +285,10 @@ class LearnPSA(object):
                 if T[sigma]-r >= 0 and T[sigma] >= 0:
                     run += u" "+sigma
                     #Find a next possible state which has some non-zero symbol probability
-                    next_possible_state = nextstate[(" ".join(cur_state), " ".join(sigma))]
+                    next_possible_state = nextstate[(" ".join(cur_state), sigma)]
                     flag = 0
                     for sigma in self.Sigma:
-                        if transition[(" ".join(next_possible_state), " ".join(sigma))] > 0:
+                        if transition[(" ".join(next_possible_state), sigma)] > 0:
                             flag = 1
                             break
                     if flag == 1:
