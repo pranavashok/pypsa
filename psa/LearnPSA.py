@@ -129,7 +129,7 @@ class LearnPSA(object):
         S = []
         removed_from_S = []
         for sigma in self.Sigma:
-            if self._P1(sigma) >= (1-self.e1)*self.e0:
+            if self._P1([sigma]) >= (1-self.e1)*self.e0:
                 S.append([sigma])
 
         while len(S) > 0:
@@ -219,7 +219,6 @@ class LearnPSA(object):
             states.append([e.data[0]])
             for c in e.children:
                 bfsqueue.append(c)
-
         return states
     
     def generate_psa(self):
@@ -227,7 +226,7 @@ class LearnPSA(object):
         states = self._get_pst_states()
         for state in states:
             state.reverse()
-            psa.extend(state) ##changed append to extend
+            psa.extend(state)
 
         psa.sort()
         transition = {}
@@ -243,7 +242,6 @@ class LearnPSA(object):
                         if psa.count(ssigma[i:]) == 1:
                             nextstate[(" ".join(state), sigma)] = (ssigma)[i:]
                             break
-
         return psa, transition, nextstate
 
     def _first_transition(self):
@@ -267,7 +265,7 @@ class LearnPSA(object):
         first = self._first_transition()
         run += first
         cur_state = [first]
-        while len(run) <= 2*N:
+        while len(run.split(" ")) <= N:
             po = []
             T = {}
             for sigma in self.Sigma:
@@ -281,8 +279,9 @@ class LearnPSA(object):
                 i += 1
 
             r = random.randrange(1, 999)/1000
+
             for sigma in self.Sigma:
-                if T[sigma]-r >= 0 and T[sigma] >= 0:
+                if T[sigma]-r >= 0 and T[sigma] >= 0 and transition[" ".join(cur_state), sigma] > 0:
                     run += u" "+sigma
                     #Find a next possible state which has some non-zero symbol probability
                     next_possible_state = nextstate[(" ".join(cur_state), sigma)]
