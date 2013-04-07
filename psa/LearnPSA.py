@@ -17,13 +17,15 @@ class LearnPSA(object):
         self.e1 = e*math.log(48*L*len(Sigma)/e, 10)/(9216*L*len(Sigma))
         self.sample = []
         self.PST = None
+        self._P2Store = {}
+        self._P1Store = {}
     
-    def _count(self, sample, seq):
+    def _X(self, sample, sequence, start, end):
         count = 0
         flag = 1
-        for i in xrange(0, len(sample)-len(seq)+1):
+        for i in xrange(start, end):
             j = i
-            for element in seq:
+            for element in sequence:
                 if sample[j] == element:
                     flag = 0
                 else:
@@ -60,29 +62,38 @@ class LearnPSA(object):
         This implementation of P is slightly modified. It divides with |r| - L 
         for each string r in sample and each |r| does not need to be equal to l
         '''
-        p = 0
-        for r in self.sample:
-            p += self._count(r[self.L-len(s)+1:len(r)-1], s)
-        p = p/(len(self.sample)*(len(r)-self.L))
+        p = self._P1Store.get(" ".join(s), -1)
+        if p == -1:
+            p = 0
+            for r in self.sample:
+                p += self._X(r, s, self.L-len(s), len(r)-len(s)+1)
+            if p == 0:
+                pass
+            else:
+                p = p/(len(self.sample)*(len(r)-self.L))
+            self._P1Store[" ".join(s)] = p
         return p
 
     def _P2(self, sigma, s):
         u'''
         P(sigma|s) is roughly the relative number of times sigma appears after s
         '''
-        countssigma = 0
-        counts = 0
-        ssigma = []
-        for e in s:
-            ssigma.append(e)
-        ssigma.append(sigma)
-        for r in self.sample:
-            countssigma += self._count(r[self.L-len(ssigma)+1:len(r)-1], ssigma)
-            counts += self._count(r[self.L-len(s)+1:len(r)-1], s)
-        if counts > 0:
-            p = countssigma/counts
-        else:
-            p = 0
+        p = self._P2Store.get((sigma, " ".join(s)), -1)
+        if p == -1:
+            countssigma = 0.0
+            counts = 0.0
+            ssigma = []
+            for e in s:
+                ssigma.append(e)
+            ssigma.append(sigma)
+            for r in self.sample:
+                countssigma += self._X(r, ssigma, self.L-len(s)+1, len(r)-len(ssigma)-1)
+                counts += self._X(r, s, self.L-len(s), len(r)-len(s)-1) #len(s) + 1 or not???
+            if countssigma == 0:
+                p = 0
+            else:
+                p = countssigma/counts
+            self._P2Store[(sigma, " ".join(s))] = p
         return p
 
     def _PI(self):
@@ -94,7 +105,6 @@ class LearnPSA(object):
                     count += 1
             PI[sigma] = count/len(self.sample)
         return PI
-
 
     def _add_missing_children(self, tree):
         #Filter out leaves
@@ -125,6 +135,8 @@ class LearnPSA(object):
             return tree
 
     def _learn(self):
+        self._P1Store = {}
+        self._P2Store = {}
         T = Tree([u"0", 1])
         S = []
         removed_from_S = []
@@ -244,50 +256,72 @@ class LearnPSA(object):
                             break
         return psa, transition, nextstate
 
-    def _first_transition(self):
+    def _first_transition(self, transition):
         PI = self._PI()
         pi = []
+        p = []
+        P = {}
+
         for sigma in self.Sigma:
-            pi.append(PI[sigma])
+            p.append((PI.get(sigma, 0), sigma))
+        p.sort()
+        pi = []
+        for element in p:
+            pi.append(element[0])
+            P[element[1]] = 0
         prob = numpy.array(pi)
         cumprob = numpy.cumsum(prob)
-        i = 0
-        for sigma in self.Sigma:
-            PI[sigma] = cumprob[i]
-            i += 1
-        r = random.randrange(0, 1000)/1000
-        for sigma in self.Sigma:
-            if PI[sigma]-r >= 0 and PI[sigma] >= 0:
-                return sigma
 
+        i = 0
+        for element in p:
+            P[element[1]] = cumprob[i]
+            i += 1
+
+        r = random.randrange(1, 999)/1000
+        
+        for sigma in P:
+            if P[sigma]-r >= 0 and P[sigma] > 0:
+                flag = 0
+                for next in self.Sigma:
+                    if transition.get((sigma, next), 0) > 0:
+                        flag = 1
+                        break
+                if flag == 1:
+                    return sigma
+                
     def generate_run(self, states, transition, nextstate, N):
         run = u""
-        first = self._first_transition()
+        first = self._first_transition(transition)
         run += first
         cur_state = [first]
         while len(run.split(" ")) <= N:
-            po = []
+            p = []
             T = {}
             for sigma in self.Sigma:
-                po.append(transition[(" ".join(cur_state), sigma)])
+                p.append((transition.get((" ".join(cur_state), sigma), 0), sigma))
+            p.sort()
+            po = []
+            for element in p:
+                po.append(element[0])
+                T[element[1]] = 0
             prob = numpy.array(po)
             cumprob = numpy.cumsum(prob)
 
             i = 0
-            for sigma in self.Sigma:
-                T[sigma] = cumprob[i]
+            for element in p:
+                T[element[1]] = cumprob[i]
                 i += 1
 
             r = random.randrange(1, 999)/1000
 
-            for sigma in self.Sigma:
-                if T[sigma]-r >= 0 and T[sigma] >= 0 and transition[" ".join(cur_state), sigma] > 0:
+            for sigma in T:
+                if T[sigma]-r >= 0 and T[sigma] > 0:
                     run += u" "+sigma
                     #Find a next possible state which has some non-zero symbol probability
-                    next_possible_state = nextstate[(" ".join(cur_state), sigma)]
+                    next_possible_state = nextstate.get((" ".join(cur_state), sigma), [first])
                     flag = 0
                     for sigma in self.Sigma:
-                        if transition[(" ".join(next_possible_state), sigma)] > 0:
+                        if transition.get((" ".join(next_possible_state), sigma), 0) > 0:
                             flag = 1
                             break
                     if flag == 1:
@@ -296,4 +330,5 @@ class LearnPSA(object):
                     else:
                         #just setting cur_state to first in case we reach a dead end.
                         cur_state = [first]
+                        break #???
         return run
