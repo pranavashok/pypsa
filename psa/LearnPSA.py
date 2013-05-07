@@ -51,9 +51,11 @@ class LearnPSA(object):
                 for j in xrange(i, i+len(subl)):
                     l.remove(l[i])
 
-    def learn_sample(self, s):
+    def add_sample(self, s):
         split = s.split(" ")
         self.sample.append(split)
+        
+    def generate_pst(self):
         self.PST = self._learn()
 
     def _P1(self, s):
@@ -66,11 +68,11 @@ class LearnPSA(object):
         if p == -1:
             p = 0
             for r in self.sample:
-                p += self._X(r, s, self.L-len(s), len(r)-len(s)+1)
+                p += self._X(r, s, self.L-len(s), len(r)-len(s)+1)/(len(r)-self.L)
             if p == 0:
                 pass
             else:
-                p = p/(len(self.sample)*(len(r)-self.L))
+                p = p/(len(self.sample))
             self._P1Store[" ".join(s)] = p
         return p
 
@@ -87,8 +89,8 @@ class LearnPSA(object):
                 ssigma.append(e)
             ssigma.append(sigma)
             for r in self.sample:
-                countssigma += self._X(r, ssigma, self.L-len(s)+1, len(r)-len(ssigma)-1)
-                counts += self._X(r, s, self.L-len(s), len(r)-len(s)-1) #len(s) + 1 or not???
+                countssigma += self._X(r, ssigma, 0, len(r)-len(ssigma)+1)
+                counts += self._X(r, s, 0, len(r)-len(s)) #len(s) + 1 or not???
             if countssigma == 0:
                 p = 0
             else:
@@ -245,13 +247,15 @@ class LearnPSA(object):
         nextstate = {}
         for state in psa:
             for sigma in self.Sigma:
+                #print " ".join(state), sigma
                 transition[(" ".join(state), sigma)] = self._P2(sigma, state)
                 if transition[(" ".join(state), sigma)] > 0:
                     #If state+sigma or it's suffix is present
                     ssigma = state[:]
                     ssigma.append(sigma)
                     for i in xrange(0, len(ssigma)):
-                        if psa.count(ssigma[i:]) == 1:
+                        #Add ssigma only if there is a possibility of ssigma
+                        if psa.count(ssigma[i:]) == 1 and self._P1(ssigma[i:]) > (1-self.e1)*self.e0:
                             nextstate[(" ".join(state), sigma)] = (ssigma)[i:]
                             break
         return psa, transition, nextstate
