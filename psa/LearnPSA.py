@@ -51,9 +51,11 @@ class LearnPSA(object):
                 for j in xrange(i, i+len(subl)):
                     l.remove(l[i])
 
-    def learn_sample(self, s):
+    def add_sample(self, s):
         split = s.split(" ")
         self.sample.append(split)
+    
+    def generate_pst(self):
         self.PST = self._learn()
 
     def _P1(self, s):
@@ -66,11 +68,11 @@ class LearnPSA(object):
         if p == -1:
             p = 0
             for r in self.sample:
-                p += self._X(r, s, self.L-len(s), len(r)-len(s)+1)
+                p += self._X(r, s, self.L-len(s), len(r)-len(s)+1)/(len(r)-self.L)
             if p == 0:
                 pass
             else:
-                p = p/(len(self.sample)*(len(r)-self.L))
+                p = p/(len(self.sample))
             self._P1Store[" ".join(s)] = p
         return p
 
@@ -87,8 +89,8 @@ class LearnPSA(object):
                 ssigma.append(e)
             ssigma.append(sigma)
             for r in self.sample:
-                countssigma += self._X(r, ssigma, self.L-len(s)+1, len(r)-len(ssigma)-1)
-                counts += self._X(r, s, self.L-len(s), len(r)-len(s)-1) #len(s) + 1 or not???
+                countssigma += self._X(r, ssigma, 0, len(r)-len(ssigma)+1)
+                counts += self._X(r, s, 0, len(r)-len(s)) #len(s) + 1 or not???
             if countssigma == 0:
                 p = 0
             else:
@@ -135,8 +137,11 @@ class LearnPSA(object):
             return tree
 
     def _learn(self):
+        print "P1 > ", (1-self.e1)*self.e0
+        print "P2 > ", (1+self.e2)*self.gamma_min
         self._P1Store = {}
         self._P2Store = {}
+
         T = Tree([u"0", 1])
         S = []
         removed_from_S = []
@@ -198,7 +203,7 @@ class LearnPSA(object):
         _T = T
         _T = self._add_missing_children(_T)
         #_T = self._compute_gamma_s_sigma(_T)
-
+        
         return _T
 
     def _compute_gamma_s_sigma(self, tree):
@@ -234,6 +239,7 @@ class LearnPSA(object):
         return states
     
     def generate_psa(self):
+        min_prob = 1.0
         psa = []
         states = self._get_pst_states()
         for state in states:
@@ -245,15 +251,29 @@ class LearnPSA(object):
         nextstate = {}
         for state in psa:
             for sigma in self.Sigma:
+                print " ".join(state), sigma
                 transition[(" ".join(state), sigma)] = self._P2(sigma, state)
                 if transition[(" ".join(state), sigma)] > 0:
+                    if transition[(" ".join(state), sigma)] < min_prob:
+                        min_prob = transition[(" ".join(state), sigma)]
                     #If state+sigma or it's suffix is present
                     ssigma = state[:]
                     ssigma.append(sigma)
                     for i in xrange(0, len(ssigma)):
-                        if psa.count(ssigma[i:]) == 1:
+                        #Add ssigma only if there is a possibility of ssigma
+                        if psa.count(ssigma[i:]) == 1 and self._P1(ssigma[i:]) > (1-self.e1)*self.e0:
                             nextstate[(" ".join(state), sigma)] = (ssigma)[i:]
                             break
+        if min_prob < 0.2:
+            #TWEAK ---- Distribute the probabilities
+            increase_min_to = 0.3
+            factor = (0.5 - increase_min_to)/(0.5 - min_prob)
+            for state in psa:
+                for sigma in self.Sigma:
+                    if transition[(" ".join(state), sigma)] > 0 and transition[(" ".join(state), sigma)] < 1:
+                        transition[(" ".join(state), sigma)] = 0.5 + (transition[(" ".join(state), sigma)] - 0.5)*factor-0.2
+            #END TWEAK
+
         return psa, transition, nextstate
 
     def _first_transition(self, transition):
@@ -300,6 +320,7 @@ class LearnPSA(object):
             for sigma in self.Sigma:
                 p.append((transition.get((" ".join(cur_state), sigma), 0), sigma))
             p.sort()
+
             po = []
             for element in p:
                 po.append(element[0])
@@ -318,7 +339,11 @@ class LearnPSA(object):
                 if T[sigma]-r >= 0 and T[sigma] > 0:
                     run += u" "+sigma
                     #Find a next possible state which has some non-zero symbol probability
-                    next_possible_state = nextstate.get((" ".join(cur_state), sigma), [first])
+                    if random.randrange(1, 999) > 300:
+                        next_possible_state = nextstate.get((" ".join(cur_state), sigma), [first])
+                    else: #TWEAK ---- To increase randomness
+                        next_possible_state = nextstate.get((cur_state[-1], sigma), [first])
+                    #next_possible_state = nextstate.get((" ".join(cur_state), sigma), [first])
                     flag = 0
                     for sigma in self.Sigma:
                         if transition.get((" ".join(next_possible_state), sigma), 0) > 0:
